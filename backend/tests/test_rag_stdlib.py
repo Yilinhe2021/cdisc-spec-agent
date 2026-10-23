@@ -37,3 +37,20 @@ def test_map_codelist_strict():
         raise AssertionError("expected ValueError")
     except ValueError:
         pass
+
+
+def test_partial_date_imputation_and_flag():
+    s = pd.Series(["2024-03-15", "2024-02", "2024", ""])
+    first = sl.impute_date(s).dt.strftime("%Y-%m-%d").fillna("").tolist()
+    last = sl.impute_date(s, day="last", month="last").dt.strftime("%Y-%m-%d").fillna("").tolist()
+    assert first == ["2024-03-15", "2024-02-01", "2024-01-01", ""]
+    assert last == ["2024-03-15", "2024-02-29", "2024-12-31", ""]   # leap year handled
+    assert sl.imputation_flag(s).tolist() == ["", "D", "M", ""]
+
+
+def test_coalesce_upcase_rowmax():
+    a, b = pd.Series(["", "x", None]), pd.Series(["y", "z", "w"])
+    assert sl.coalesce(a, b).tolist() == ["y", "x", "w"]
+    assert sl.upcase(pd.Series([" mild\xa0"])).tolist() == ["MILD"]
+    m = sl.row_max(pd.Series(["2024-01-05", ""]), pd.Series(["2024-02-01", "2024-03"]))
+    assert m.iloc[0] == pd.Timestamp("2024-02-01") and pd.isna(m.iloc[1])

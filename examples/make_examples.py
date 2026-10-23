@@ -137,7 +137,11 @@ def ref_adam(dm: pd.DataFrame, ae: pd.DataFrame):
     rows = []
     for r in ae.itertuples():
         trtsdt = m.at[r.USUBJID, "TRTSDT"]
-        ast = r.AESTDTC if len(r.AESTDTC) == 10 else ""
+        ast, astf = r.AESTDTC, ""
+        if len(ast) == 7:                       # spec: impute missing day as the 1st
+            ast, astf = ast + "-01", "D"
+        elif len(ast) != 10:
+            ast = ""
         dy, emf = None, ""
         if ast and trtsdt:
             diff = (date.fromisoformat(ast) - date.fromisoformat(trtsdt)).days
@@ -145,7 +149,7 @@ def ref_adam(dm: pd.DataFrame, ae: pd.DataFrame):
             emf = "Y" if diff >= 0 else ""
         rows.append({"STUDYID": r.STUDYID, "USUBJID": r.USUBJID, "AESEQ": r.AESEQ, "AETERM": r.AETERM,
                      "AEDECOD": r.AEDECOD, "AESEV": r.AESEV, "AESER": r.AESER, "TRTA": m.at[r.USUBJID, "TRT01P"],
-                     "SAFFL": m.at[r.USUBJID, "SAFFL"], "TRTSDT": trtsdt, "AESTDTC": r.AESTDTC, "ASTDT": ast,
+                     "SAFFL": m.at[r.USUBJID, "SAFFL"], "TRTSDT": trtsdt, "AESTDTC": r.AESTDTC, "ASTDT": ast, "ASTDTF": astf,
                      "ASTDY": dy, "TRTEMFL": emf})
     return adsl, pd.DataFrame(rows)
 
@@ -237,7 +241,9 @@ ADAM_VARS = [
     ("ADAE", "TRTSDT", "Date of First Exposure to Treatment", "Num", 8, "Predecessor", "ADSL.TRTSDT merged by USUBJID", "", "Perm"),
     ("ADAE", "AESTDTC", "Start Date/Time of Adverse Event", "Char", 19, "Predecessor", "AE.AESTDTC", "", "Perm"),
     ("ADAE", "ASTDT", "Analysis Start Date", "Num", 8, "Derived",
-     "Numeric date of AESTDTC; missing if AESTDTC is partial (no imputation)", "", "Exp"),
+     "Numeric date of AESTDTC imputing missing day as first day of month", "", "Exp"),
+    ("ADAE", "ASTDTF", "Analysis Start Date Imputation Flag", "Char", 1, "Derived",
+     "Imputation flag of AESTDTC", "DATEFL", "Perm"),
     ("ADAE", "ASTDY", "Analysis Start Relative Day", "Num", 8, "Derived",
      "Study day of ASTDT relative to TRTSDT: ASTDT - TRTSDT + 1 if ASTDT >= TRTSDT, else ASTDT - TRTSDT; "
      "missing if either is missing", "", "Perm"),
@@ -245,7 +251,8 @@ ADAM_VARS = [
      "Set to 'Y' if ASTDT >= TRTSDT, else null; null if ASTDT or TRTSDT is missing", "Y", "Exp"),
 ]
 ADAM_CL = [("AGEGR1", "<65", "<65"), ("AGEGR1", ">=65", ">=65"), ("SEX", "M", "Male"), ("SEX", "F", "Female"),
-           ("NY", "N", "No"), ("NY", "Y", "Yes"), ("Y", "Y", "Yes")]
+           ("NY", "N", "No"), ("NY", "Y", "Yes"), ("Y", "Y", "Yes"),
+           ("DATEFL", "D", "Day imputed"), ("DATEFL", "M", "Month imputed")]
 
 # -------------------------------------------------------- seeded defects (QC demo)
 # (dataset, variable, field, new value, expected rule or agent category)

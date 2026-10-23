@@ -59,4 +59,4 @@ LLM provider: `mock` / `offline-heuristics` · generated 2026-10-22
 | SDTM | DM | ok | 42 | 100.0% | 546/546 |
 | SDTM | AE | ok | 71 | 100.0% | 568/568 |
 | ADaM | ADSL | warnings | 42 | 100.0% | 630/630 |
-| ADaM | ADAE | ok | 71 | 100.0% | 781/781 |
+| ADaM | ADAE | ok | 71 | 100.0% | 852/852 |

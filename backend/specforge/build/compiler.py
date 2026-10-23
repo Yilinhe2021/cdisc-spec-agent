@@ -18,6 +18,9 @@ Supported phrases (case-insensitive):
   Sequence number within A[, B] ordered by C[, D]
   Map REF using codelist CL[; if missing set to 'X']
   Set to VAL if COND, else VAL        (COND: REF op VAL | REF is [not] missing; VAL: 'x' | number | null | REF)
+  Numeric date of REF imputing missing day as first|last day of month [and missing month as January|December]
+  Imputation flag of REF              First non-missing of A, B       Upper case of REF
+  Earliest|Latest of A, B             any phrase + "; missing if A [or B] is missing"
 """
 from __future__ import annotations
 
@@ -117,6 +120,24 @@ def _compile_phrase(d: str, c: _Ctx) -> str | None:
     m = re.fullmatch(rf"(?i)iso 8601 date of ({REF})", d)
     if m:
         return f"iso_date({c.ref(m.group(1))})"
+    m = re.fullmatch(rf"(?i)numeric date of ({REF}) imputing missing day as (first|last) day of (?:the )?month"
+                     rf"(?: and missing month as (january|december))?", d)
+    if m:
+        month = "last" if (m.group(3) or "").lower() == "december" else "first"
+        return f"impute_date({c.ref(m.group(1))}, day={m.group(2).lower()!r}, month={month!r})"
+    m = re.fullmatch(rf"(?i)imputation flag (?:of|for) ({REF})", d)
+    if m:
+        return f"imputation_flag({c.ref(m.group(1))})"
+    m = re.fullmatch(rf"(?i)first non-missing of ({REF}(?:\s*,\s*{REF})+)", d)
+    if m:
+        return "coalesce(" + ", ".join(c.ref(r) for r in _split_args(m.group(1))) + ")"
+    m = re.fullmatch(rf"(?i)upper case of ({REF})", d)
+    if m:
+        return f"upcase({c.ref(m.group(1))})"
+    m = re.fullmatch(rf"(?i)(earliest|latest) of ({REF}(?:\s*,\s*{REF})+)", d)
+    if m:
+        fn = "row_min" if m.group(1).lower() == "earliest" else "row_max"
+        return f"{fn}(" + ", ".join(c.ref(r) for r in _split_args(m.group(2))) + ")"
     m = re.fullmatch(rf"(?i)numeric date of ({REF})(?:\s+merged by\s+([A-Z, ]+))?(?:;.*)?", d)
     if m:
         return f"num_date({c.ref(m.group(1), _keys(m.group(2)))})"

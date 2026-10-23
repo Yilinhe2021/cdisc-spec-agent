@@ -15,7 +15,8 @@ import numpy as np
 import pandas as pd
 
 __all__ = ["pd", "np", "iso_date", "num_date", "age_years", "study_day", "seq_number", "map_codelist",
-           "merge_var", "concat", "to_num", "is_missing", "not_missing", "where", "finalize", "clean_text"]
+           "merge_var", "concat", "to_num", "impute_date", "imputation_flag", "coalesce", "upcase",
+           "row_min", "row_max", "is_missing", "not_missing", "where", "finalize", "clean_text"]
 
 _MONTHS = {m: i for i, m in enumerate(
     ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"], 1)}
@@ -146,6 +147,52 @@ def concat(*parts, sep: str = "") -> pd.Series:
         piece = clean_text(p) if isinstance(p, pd.Series) else str(p)
         out = out + (sep if i and sep else "") + piece
     return out
+
+
+def impute_date(s: pd.Series, day: str = "first", month: str = "first") -> pd.Series:
+    """Partial ISO date -> numeric date. Missing day -> first/last day of that month; missing month -> Jan/Dec.
+    Fully missing stays missing (never invent a year)."""
+    def one(x):
+        v = "" if is_scalar_missing(x) else _iso_one(x)[:10]
+        if len(v) == 10:
+            return pd.Timestamp(v)
+        if len(v) == 4:
+            v = f"{v}-{'01' if month == 'first' else '12'}"
+        if len(v) == 7:
+            first = pd.Timestamp(v + "-01")
+            return first if day == "first" else first + pd.offsets.MonthEnd(0)
+        return pd.NaT
+    return pd.to_datetime(s.map(one))
+
+
+def imputation_flag(s: pd.Series) -> pd.Series:
+    """'' complete or missing, 'D' day imputed, 'M' month (and day) imputed - highest level imputed."""
+    def one(x):
+        v = "" if is_scalar_missing(x) else _iso_one(x)[:10]
+        return {10: "", 7: "D", 4: "M"}.get(len(v), "")
+    return s.map(one)
+
+
+def coalesce(*series: pd.Series) -> pd.Series:
+    """First non-missing value across columns, left to right."""
+    out = series[0].copy().astype(object)
+    for s in series[1:]:
+        out = out.where(not_missing(out), s)
+    return out
+
+
+def upcase(s: pd.Series) -> pd.Series:
+    return clean_text(s).str.upper()
+
+
+def row_min(*series: pd.Series) -> pd.Series:
+    """Earliest of several dates per row (missing ignored; all missing -> missing)."""
+    return pd.concat([num_date(x) for x in series], axis=1).min(axis=1)
+
+
+def row_max(*series: pd.Series) -> pd.Series:
+    """Latest of several dates per row (missing ignored; all missing -> missing)."""
+    return pd.concat([num_date(x) for x in series], axis=1).max(axis=1)
 
 
 def to_num(s: pd.Series) -> pd.Series:
