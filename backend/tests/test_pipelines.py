@@ -79,3 +79,13 @@ def test_reads_windows_1252_extract():
     df = read_table(EX / "sdtm" / "raw" / "RAW_AE.csv")
     assert df.attrs["encoding"] == "cp1252"
     assert "Eczéma on forearm" in df["AETERM"].tolist()
+
+
+def test_concordance_treats_nullable_na_as_missing():
+    import pandas as pd
+
+    from specforge.build.validate import compare_to_reference
+
+    out = pd.DataFrame({"K": ["a", "b"], "AGE": pd.array([30, None], dtype="Float64")})
+    ref = pd.DataFrame({"K": ["a", "b"], "AGE": ["30", ""]})
+    assert compare_to_reference(out, ref, ["K"])["concordance_pct"] == 100.0

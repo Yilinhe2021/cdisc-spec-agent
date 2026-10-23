@@ -89,7 +89,8 @@ def check_against_spec(df: pd.DataFrame, spec: Spec, dataset: str, unresolved: s
 
 # ------------------------------------------------------------------ concordance
 def _norm(x: Any) -> Any:
-    if x is None or (isinstance(x, float) and np.isnan(x)) or x is pd.NaT:
+    # pd.NA (nullable Int64/Float64) must count as missing too: str(pd.NA) == "<NA>" would never match ""
+    if x is None or x is pd.NA or x is pd.NaT or (isinstance(x, float) and np.isnan(x)):
         return ""
     if isinstance(x, pd.Timestamp):
         return x.strftime("%Y-%m-%d")
