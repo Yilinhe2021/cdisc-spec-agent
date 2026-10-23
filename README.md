@@ -3,6 +3,8 @@
 [![ci](https://github.com/Yilinhe2021/cdisc-spec-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Yilinhe2021/cdisc-spec-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+English | [Chinese version](docs/README.zh-CN.md)
+
 **Multi-agent + RAG assistant for clinical dataset specifications (CDISC SDTM / ADaM).**
 
 Two-step workflow, one web app:
@@ -28,20 +30,26 @@ standard only switches the rule pack and the retrieved knowledge.
 
 ## Background
 
-> _Draft — rewrite this section in your own words before publishing._
+I work as a clinical statistical programmer. In my previous role I led a pilot that used an LLM agent as the
+"second programmer" in blinded double programming of SDTM and ADaM datasets, and a separate project that QC'd ADaM
+specs line by line. A few things I learned there shaped this project:
 
-I work in clinical statistical programming. Two things kept costing the most time:
+- **Most differences came from the spec, not from the logic.** In the first pilot, 93% of the mismatched cells were
+  spec text that had been re-typed (case, spacing, underscores). One mandatory step, "copy from the spec, never
+  retype", brought first-pass agreement from about 98% to over 99%. Here the compiler copies literals verbatim.
+- **Missing values behave differently in SAS and Python.** A group of subjects that I first blamed on the reference
+  data turned out to be a `missing ne 'X'` comparison, which is true in SAS. That case now has a clarity check and a
+  knowledge note.
+- **One partial date can break three datasets.** An incomplete date left a subject-level date empty, and every
+  dataset that merged it disagreed. Imputation rules have to be in the spec, so the compiler supports them explicitly.
+- **The spec itself can be malformed.** A literal opened with `'` and closed with `"` silently dropped records.
+  This is rule GEN-016.
+- **Extracts are messy.** Some files were Windows-1252 while the rest were UTF-8, and some headers declared the
+  wrong encoding. The build now detects encoding per file.
 
-- **Specs that are wrong or unclear.** A derivation that leaves out the "else" branch, says "first" without a sort
-  key, or never mentions partial dates gets implemented two different ways by two programmers. The disagreement is
-  found weeks later, during double programming.
-- **Double programming itself.** Most cell-level differences I have chased came from the spec text (re-typed
-  literals, missing-value semantics that differ between SAS and Python, a malformed quote), not from logic bugs.
-
-SpecForge is my attempt to move both checks to the start: review the spec as if an independent programmer had to
-implement it without asking anyone, then build the datasets from that spec and measure them blinded against a
-reference. The rules, knowledge notes and seeded traps encode lessons from that work, written generically. No
-employer code, specs or data are used.
+SpecForge rebuilds these ideas from scratch, as a public project: review the spec as if an independent programmer
+had to implement it without asking anyone, then build the datasets and measure them blind against a reference. All
+rules and notes are written generically. No employer code, specs or data are used, and all demo data is synthetic.
 
 ## How this was built
 
