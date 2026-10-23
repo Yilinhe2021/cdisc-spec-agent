@@ -1,5 +1,5 @@
 #!/bin/bash
-# 双击启动 SpecForge：启动后台服务并自动打开浏览器。关闭这个终端窗口即停止服务。
+# macOS: double-click to start SpecForge locally and open the browser. Close this window to stop.
 cd "$(dirname "$0")"
 [ -f frontend/dist/index.html ] || (cd frontend && npm install && npm run build)
 [ -f examples/sdtm/spec_final.xlsx ] || python3 examples/make_examples.py

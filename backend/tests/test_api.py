@@ -35,3 +35,13 @@ def test_build_flow_zip():
     assert j["status"] == "done"
     assert {d["dataset"] for d in j["result"]["datasets"]} == {"ADSL", "ADAE"}
     assert c.get(f"/api/build/{jid}/download.zip").content[:2] == b"PK"
+
+
+def test_public_demo_blocks_uploads(monkeypatch):
+    import specforge.api.app as appmod
+
+    monkeypatch.setattr(appmod, "PUBLIC_DEMO", True)
+    c = TestClient(appmod.app)
+    assert c.get("/api/health").json()["offline"] is True
+    r = c.post("/api/qc", data={"standard": "SDTM"}, files={"spec": ("s.csv", b"Variable\nAGE\n")})
+    assert r.status_code == 403

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Multi-agent + RAG QC and dataset generation for CDISC SDTM/ADaM specifications"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+authors = [{ name = "Jeffrey Longan" }]
 dependencies = [
   "fastapi>=0.110",
   "uvicorn[standard]>=0.29",
@@ -17,6 +18,9 @@ dependencies = [
   "openpyxl>=3.1",
   "pydantic>=2.6",
 ]
+
+[project.urls]
+Repository = "https://github.com/Yilinhe2021/cdisc-spec-agent"
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40"]

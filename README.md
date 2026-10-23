@@ -1,5 +1,8 @@
 # SpecForge
 
+[![ci](https://github.com/Yilinhe2021/cdisc-spec-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Yilinhe2021/cdisc-spec-agent/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Multi-agent + RAG assistant for clinical dataset specifications (CDISC SDTM / ADaM).**
 
 Two-step workflow, one web app:
@@ -23,13 +26,36 @@ standard only switches the rule pack and the retrieved knowledge.
 > not a copy of any CDISC document. Findings are suggestions for a human reviewer, and the tool is not validated
 > for regulatory use.
 
+## Background
+
+> _Draft — rewrite this section in your own words before publishing._
+
+I work in clinical statistical programming. Two things kept costing the most time:
+
+- **Specs that are wrong or unclear.** A derivation that leaves out the "else" branch, says "first" without a sort
+  key, or never mentions partial dates gets implemented two different ways by two programmers. The disagreement is
+  found weeks later, during double programming.
+- **Double programming itself.** Most cell-level differences I have chased came from the spec text (re-typed
+  literals, missing-value semantics that differ between SAS and Python, a malformed quote), not from logic bugs.
+
+SpecForge is my attempt to move both checks to the start: review the spec as if an independent programmer had to
+implement it without asking anyone, then build the datasets from that spec and measure them blinded against a
+reference. The rules, knowledge notes and seeded traps encode lessons from that work, written generically. No
+employer code, specs or data are used.
+
+## How this was built
+
+Built with AI-assisted development (Claude Code). I defined the architecture, the QC rule taxonomy, the blinded
+validation and evaluation method, and the domain rules and traps. I reviewed and changed the generated code,
+starting from the initial prototype commit. The git history shows what changed after that commit and why.
+
 ---
 
 ## Why it is built this way
 
 | Problem | Design decision |
 |---|---|
-| LLMs are inconsistent on things that have exact answers (name length, types, codelists) | **Deterministic rule engine first** (31 rules). LLM agents only judge what rules can't: clarity, intent, cross-row meaning |
+| LLMs are inconsistent on things that have exact answers (name length, types, codelists) | **Deterministic rule engine first** (32 rules). LLM agents only judge what rules can't: clarity, intent, cross-row meaning |
 | A single "review everything" prompt is shallow | **Specialised reviewers** run in parallel, each with one question, its own retrieved context and a strict JSON schema: *Clarity* (could an independent programmer implement this without asking?), *Standards* (RAG-grounded conformance), *Consistency* (contradictions across rows/datasets) |
 | Hallucinated or duplicate findings | **Judge agent**: LLM self-verification of LLM findings, drops findings that point at variables that don't exist, de-duplicates across agents (agreement raises confidence), attaches RAG evidence |
 | Every team has a different review taste | **Feedback memory**: accept/dismiss in the UI is stored, retrieved as few-shot calibration examples, and used by the Judge to down-weight patterns humans keep dismissing |
@@ -45,7 +71,7 @@ standard only switches the rule pack and the retrieved knowledge.
 ```mermaid
 flowchart LR
   subgraph QC["Step 1 · Spec QC"]
-    I[Intake] --> R[Rule engine<br/>31 rules]
+    I[Intake] --> R[Rule engine<br/>32 rules]
     I --> C[Clarity reviewer<br/>LLM]
     I --> S[Standards reviewer<br/>LLM + RAG]
     I --> K[Consistency reviewer<br/>LLM]
@@ -91,7 +117,9 @@ examples/              synthetic study generator + generated specs/data/referenc
 ## Quick start
 
 ```bash
-# backend
+git clone https://github.com/Yilinhe2021/cdisc-spec-agent.git && cd cdisc-spec-agent
+
+# backend (Python 3.10+)
 pip install -e "backend[anthropic,openai,dev]"
 python examples/make_examples.py          # synthetic demo study
 cp .env.example .env                      # add ANTHROPIC_API_KEY (or leave empty for offline mode)
@@ -103,7 +131,9 @@ uvicorn specforge.api.app:app --app-dir backend --port 8000
 # open http://localhost:8000 → "Try the synthetic demo spec"
 ```
 
-or `docker compose up --build`.
+On macOS you can also double-click `start.command`.
+
+or `docker compose up --build` (the Dockerfile is provided but not yet tested in CI).
 
 Without an API key the app runs in **offline mode**: every LLM agent falls back to a documented heuristic
 (`@register_mock` next to each prompt), so the whole pipeline, UI, tests and eval run with zero credentials.
@@ -128,10 +158,10 @@ pip install -e "backend[mcp]" && python -m specforge.mcp_server
 
 | Metric | Offline mode |
 |---|---|
-| Seeded defects found (20 hand-written defects in the two draft specs) | 20 / 20 |
+| Seeded defects found (23 hand-written defects in the two draft specs) | 23 / 23 |
 | Findings on the clean specs (false positives) | 0 |
 | Mutation testing: 60 random single-defect mutants, 10 operators | 60 / 60 |
-| Build: cell-level concordance vs independently hand-coded reference (DM, AE, ADSL, ADAE) | 100% (2,525 cells) |
+| Build: cell-level concordance vs independently hand-coded reference (DM, AE, ADSL, ADAE) | 100% (2,596 cells) |
 
 Read these numbers with care: the demo specs and mutation operators were written alongside the rules, so offline
 recall is an upper bound on a friendly benchmark. The harness exists so you can rerun it with
@@ -150,6 +180,9 @@ DS.VAR [merged by KEY]              Set to 'X'                  Concatenate A, '
 ISO 8601 date of REF                Numeric date of REF         Age in completed years from REF to REF
 Study day of REF relative to REF    Sequence number within A ordered by B, C
 Map REF using codelist CL[; if missing set to 'X']             Set to VAL if COND, else VAL
+Numeric date of REF imputing missing day as first|last day of month [and missing month as January|December]
+Imputation flag of REF              First non-missing of A, B   Upper case of REF     Earliest|Latest of A, B
+<any phrase>; missing if A [or B] is missing
 ```
 
 ## Configuration
@@ -162,6 +195,20 @@ Map REF using codelist CL[; if missing set to 'X']             Set to VAL if CON
 | `SPECFORGE_MAX_REPAIRS` | `3` | build/repair attempts per dataset |
 | `SPECFORGE_EMBEDDINGS` | hashing | `st` = sentence-transformers |
 | `SPECFORGE_DATA_DIR` | `./.specforge` | jobs and feedback memory |
+| `SPECFORGE_PUBLIC_DEMO` | `0` | `1` = offline provider, demo buttons only, uploads rejected (for public hosting) |
+
+## Known limitations
+
+- **Real-LLM mode is not yet evaluated.** All numbers above are from offline mode. The LLM paths (reviewers,
+  Coder, Repairer, Judge verification) are implemented, but their recall/precision has not been measured yet.
+- **The benchmark is friendly.** The demo specs, seeded defects and mutation operators were written alongside the
+  rules. Results on independently written specs will be lower.
+- **The sandbox is not a security boundary.** Generated code runs in a resource-limited subprocess. Use Docker
+  for isolation, and use `SPECFORGE_PUBLIC_DEMO=1` for any public instance.
+- **Jobs live in memory.** Restarting the server loses running jobs (results on disk remain). Single process only.
+- **The offline compiler only knows a fixed vocabulary.** Free-text derivations need an LLM, or they are reported
+  as `SPEC_GAP`.
+- **Not covered yet:** SUPPQUAL, define.xml and XPT output.
 
 ## Roadmap
 

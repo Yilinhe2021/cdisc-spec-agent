@@ -31,6 +31,18 @@ from ..spec.parser import load_spec
 DATA_DIR = Path(os.getenv("SPECFORGE_DATA_DIR", Path.cwd() / ".specforge"))
 EXAMPLES = Path(os.getenv("SPECFORGE_EXAMPLES", Path(__file__).resolve().parents[3] / "examples"))
 FRONTEND = Path(__file__).resolve().parents[3] / "frontend" / "dist"
+# Public demo: the Build step executes generated code, so a public instance must never run LLM-written
+# code from arbitrary uploads. Demo mode = offline provider + demo buttons only, uploads rejected.
+PUBLIC_DEMO = os.getenv("SPECFORGE_PUBLIC_DEMO") == "1"
+
+
+def llm_provider():
+    return get_provider("mock") if PUBLIC_DEMO else get_provider()
+
+
+def _no_uploads_in_demo():
+    if PUBLIC_DEMO:
+        raise HTTPException(403, "Uploads are disabled on the public demo; run it locally to use your own files.")
 
 app = FastAPI(title="SpecForge", version="0.1.0",
               description="Multi-agent + RAG spec QC and dataset generation for SDTM / ADaM")
@@ -80,8 +92,8 @@ async def _save(upload: UploadFile, dest: Path) -> Path:
 # --------------------------------------------------------------------- meta
 @app.get("/api/health")
 def health():
-    llm = get_provider()
-    return {"status": "ok", "llm": llm.name, "model": llm.model, "offline": llm.offline}
+    llm = llm_provider()
+    return {"status": "ok", "llm": llm.name, "model": llm.model, "offline": llm.offline, "public_demo": PUBLIC_DEMO}
 
 
 @app.get("/api/rules")
@@ -94,7 +106,7 @@ def rules():
 async def _run_qc_job(job: Job, support: dict[str, str]):
     job.status = "running"
     try:
-        job.result = await run_qc(job.spec, get_provider(), job.tracer, job.id, support)
+        job.result = await run_qc(job.spec, llm_provider(), job.tracer, job.id, support)
         (job.workdir / "qc_result.json").write_text(job.result.model_dump_json(indent=1))
         job.status = "done"
     except Exception as e:  # surface to UI
@@ -107,6 +119,7 @@ async def _run_qc_job(job: Job, support: dict[str, str]):
 @app.post("/api/qc")
 async def start_qc(background: BackgroundTasks, standard: Standard = Form(...), spec: UploadFile = File(...),
                    documents: list[UploadFile] | None = File(None)):
+    _no_uploads_in_demo()
     job = _new_job("qc", standard)
     job.spec_path = await _save(spec, job.workdir / "input" / (spec.filename or "spec.xlsx"))
     try:
@@ -170,7 +183,7 @@ def annotated(jid: str):
 async def _run_build_job(job: Job, inputs, refs, targets):
     job.status = "running"
     try:
-        job.result = await run_build(job.spec, inputs, get_provider(), job.workdir, job.tracer, job.id, targets, refs)
+        job.result = await run_build(job.spec, inputs, llm_provider(), job.workdir, job.tracer, job.id, targets, refs)
         (job.workdir / "build_result.json").write_text(job.result.model_dump_json(indent=1))
         job.status = "done"
     except Exception as e:
@@ -188,6 +201,7 @@ def _tables(paths: list[Path]):
 async def start_build(background: BackgroundTasks, standard: Standard = Form(...), spec: UploadFile = File(...),
                       data: list[UploadFile] = File(...), references: list[UploadFile] | None = File(None),
                       targets: str = Form("")):
+    _no_uploads_in_demo()
     job = _new_job("build", standard)
     job.spec_path = await _save(spec, job.workdir / "input" / (spec.filename or "spec.xlsx"))
     try:
