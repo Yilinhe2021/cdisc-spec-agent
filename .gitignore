@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+.env
+.specforge/
+specforge_out/
+frontend/node_modules/
+frontend/dist/
+# never commit real study data
+data/
+*.sas7bdat
+*.xpt
+!examples/**

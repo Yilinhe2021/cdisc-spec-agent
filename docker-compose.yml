@@ -1,0 +1,10 @@
+services:
+  specforge:
+    build: .
+    ports: ["8000:8000"]
+    env_file: [.env]
+    volumes: ["specforge-data:/data"]
+    read_only: true
+    tmpfs: ["/tmp"]
+volumes:
+  specforge-data:

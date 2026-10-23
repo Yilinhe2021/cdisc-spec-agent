@@ -1,0 +1,106 @@
+{
+  "SDTM": [
+    {
+      "dataset": "DM",
+      "variable": "RFSTDTC",
+      "expect": "SDTM-002"
+    },
+    {
+      "dataset": "DM",
+      "variable": "AGE",
+      "expect": "GEN-004"
+    },
+    {
+      "dataset": "DM",
+      "variable": "ARMCD",
+      "expect": "clarity"
+    },
+    {
+      "dataset": "DM",
+      "variable": "COUNTRY",
+      "expect": "GEN-008"
+    },
+    {
+      "dataset": "AE",
+      "variable": "AESER",
+      "expect": "GEN-014"
+    },
+    {
+      "dataset": "AE",
+      "variable": "AESEV",
+      "expect": "GEN-009"
+    },
+    {
+      "dataset": "AE",
+      "variable": "AESTDY",
+      "expect": "SDTM-004"
+    },
+    {
+      "dataset": "AE",
+      "variable": "AESEQ",
+      "expect": "clarity"
+    },
+    {
+      "dataset": "AE",
+      "variable": "AEENDTC",
+      "expect": "conformance"
+    },
+    {
+      "dataset": "AE",
+      "variable": "AEOUTCOME",
+      "expect": "GEN-002"
+    }
+  ],
+  "ADaM": [
+    {
+      "dataset": "ADSL",
+      "variable": "SAFFL",
+      "expect": "clarity"
+    },
+    {
+      "dataset": "ADSL",
+      "variable": "TRTSDT",
+      "expect": "ADAM-003"
+    },
+    {
+      "dataset": "ADSL",
+      "variable": "AGEGR1N",
+      "expect": "ADAM-005"
+    },
+    {
+      "dataset": "ADSL",
+      "variable": "ITTFL",
+      "expect": "ADAM-004"
+    },
+    {
+      "dataset": "ADSL",
+      "variable": "EOSSTT",
+      "expect": "GEN-007"
+    },
+    {
+      "dataset": "ADAE",
+      "variable": "TRTEMFL",
+      "expect": "GEN-013"
+    },
+    {
+      "dataset": "ADAE",
+      "variable": "ASTDT",
+      "expect": "clarity"
+    },
+    {
+      "dataset": "ADAE",
+      "variable": "SAFFL",
+      "expect": "consistency"
+    },
+    {
+      "dataset": "ADAE",
+      "variable": "AOCCFL",
+      "expect": "clarity"
+    },
+    {
+      "dataset": "ADSL",
+      "variable": "(dataset)",
+      "expect": "ADAM-008"
+    }
+  ]
+}
