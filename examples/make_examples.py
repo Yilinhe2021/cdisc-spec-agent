@@ -111,7 +111,7 @@ def ref_sdtm(rdm: pd.DataFrame, rae: pd.DataFrame):
             diff = (_dt(st) - _dt(rf[u])).days
             dy = diff + 1 if diff >= 0 else diff
         ae.append({"STUDYID": r.STUDY, "DOMAIN": "AE", "USUBJID": u, "AETERM": r.AETERM, "AEDECOD": r.AEDECOD,
-                   "AESEV": r.AESEV.upper(), "AESER": r.AESER[0], "AESTDTC": st, "AEENDTC": _iso(r.AEENDAT),
+                   "AESEV": r.AESEV.strip().upper(), "AESER": r.AESER[0], "AESTDTC": st, "AEENDTC": _iso(r.AEENDAT),
                    "AESTDY": dy})
     ae = pd.DataFrame(ae)
     ae["_o"] = range(len(ae))
@@ -257,6 +257,8 @@ ADAM_CL = [("AGEGR1", "<65", "<65"), ("AGEGR1", ">=65", ">=65"), ("SEX", "M", "M
 # -------------------------------------------------------- seeded defects (QC demo)
 # (dataset, variable, field, new value, expected rule or agent category)
 SDTM_DEFECTS = [
+    ("DM", "ARM", "Source/Derivation", "Map RAW_DM.RAND_ARM using codelist ARM; if missing set to 'Screen Failure\"", "GEN-016"),
+    ("AE", "DOMAIN", "Source/Derivation", "Set to \u2018AE\u2019", "GEN-016"),
     ("DM", "RFSTDTC", "Type", "Num", "SDTM-002"),
     ("DM", "AGE", "Label", "Age of the Subject in Years at Informed Consent", "GEN-004"),
     ("DM", "ARMCD", "Source/Derivation", "Map RAW_DM.RAND_ARM using codelist ARMCD; TBD for screen failures", "clarity"),
@@ -269,6 +271,7 @@ SDTM_DEFECTS = [
     ("AE", "AEOUTCOME", None, ("AE", "AEOUTCOME", "Outcome of Adverse Event", "Char", 40, "CRF", "RAW_AE.AEOUT", "", "Perm"), "GEN-002"),
 ]
 ADAM_DEFECTS = [
+    ("ADSL", "AGEGR1", "Source/Derivation", "Set to '<65' if AGE < 65, else '>=65'", "clarity"),
     ("ADSL", "SAFFL", "Source/Derivation", "Set to 'Y' if subject received any study treatment", "clarity"),
     ("ADSL", "TRTSDT", "Type", "Char", "ADAM-003"),
     ("ADSL", "AGEGR1N", "Type", "Char", "ADAM-005"),
@@ -310,9 +313,13 @@ def write_spec(path: Path, datasets, vars_, cl):
 
 def main():
     rdm, rae = make_raw()
+    # Data traps seen in real extracts: a non-breaking space glued to a coded value, an accented verbatim
+    # term, and a file saved as Windows-1252 instead of UTF-8. The build must survive all three.
+    rae.loc[rae.index[:3], "AESEV"] = rae.loc[rae.index[:3], "AESEV"] + "\xa0"
+    rae.loc[rae.index[3], ["AETERM", "AEDECOD"]] = ["Eczéma on forearm", "Eczema"]
     (HERE / "sdtm/raw").mkdir(parents=True, exist_ok=True)
     rdm.to_csv(HERE / "sdtm/raw/RAW_DM.csv", index=False)
-    rae.to_csv(HERE / "sdtm/raw/RAW_AE.csv", index=False)
+    rae.to_csv(HERE / "sdtm/raw/RAW_AE.csv", index=False, encoding="cp1252")
     dm, ae = ref_sdtm(rdm, rae)
     adsl, adae = ref_adam(dm, ae)
     for sub, frames in (("sdtm/reference", {"DM": dm, "AE": ae}), ("adam/reference", {"ADSL": adsl, "ADAE": adae})):

@@ -6,6 +6,8 @@ LLM provider: `mock` / `offline-heuristics` · generated 2026-10-22
 
 | Standard | Dataset.Variable | Expected | Detected |
 |---|---|---|---|
+| SDTM | DM.ARM | GEN-016 | yes |
+| SDTM | AE.DOMAIN | GEN-016 | yes |
 | SDTM | DM.RFSTDTC | SDTM-002 | yes |
 | SDTM | DM.AGE | GEN-004 | yes |
 | SDTM | DM.ARMCD | clarity | yes |
@@ -16,6 +18,7 @@ LLM provider: `mock` / `offline-heuristics` · generated 2026-10-22
 | SDTM | AE.AESEQ | clarity | yes |
 | SDTM | AE.AEENDTC | conformance | yes |
 | SDTM | AE.AEOUTCOME | GEN-002 | yes |
+| ADaM | ADSL.AGEGR1 | clarity | yes |
 | ADaM | ADSL.SAFFL | clarity | yes |
 | ADaM | ADSL.TRTSDT | ADAM-003 | yes |
 | ADaM | ADSL.AGEGR1N | ADAM-005 | yes |
@@ -27,7 +30,7 @@ LLM provider: `mock` / `offline-heuristics` · generated 2026-10-22
 | ADaM | ADAE.AOCCFL | clarity | yes |
 | ADaM | ADSL.(dataset) | ADAM-008 | yes |
 
-**Recall 20/20 = 100%**. Additional findings on the drafts not in the answer key: 5 (review manually; may be real).
+**Recall 23/23 = 100%**. Additional findings on the drafts not in the answer key: 5 (review manually; may be real).
 
 ## 2. False positives on clean specs
 

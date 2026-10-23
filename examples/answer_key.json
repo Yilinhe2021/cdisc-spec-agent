@@ -2,6 +2,16 @@
   "SDTM": [
     {
       "dataset": "DM",
+      "variable": "ARM",
+      "expect": "GEN-016"
+    },
+    {
+      "dataset": "AE",
+      "variable": "DOMAIN",
+      "expect": "GEN-016"
+    },
+    {
+      "dataset": "DM",
       "variable": "RFSTDTC",
       "expect": "SDTM-002"
     },
@@ -52,6 +62,11 @@
     }
   ],
   "ADaM": [
+    {
+      "dataset": "ADSL",
+      "variable": "AGEGR1",
+      "expect": "clarity"
+    },
     {
       "dataset": "ADSL",
       "variable": "SAFFL",

@@ -1,6 +1,7 @@
 """Wire the build agents into a dependency-shaped graph and run it."""
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import pandas as pd
@@ -32,10 +33,26 @@ async def run_build(spec: Spec, inputs: dict[str, pd.DataFrame], llm: LLMProvide
     return BuildResult(job_id=job_id, standard=spec.standard, plan=plan, datasets=datasets)
 
 
+def detect_encoding(raw: bytes) -> str:
+    """Per-file encoding detection. Never trust a declared encoding: extracts often arrive as Windows-1252
+    even when everything else is UTF-8. UTF-8 is strict, so a successful decode is strong evidence."""
+    for enc in ("utf-8-sig", "cp1252"):
+        try:
+            raw.decode(enc)
+            return enc
+        except UnicodeDecodeError:
+            continue
+    return "latin-1"  # decodes anything; last resort
+
+
 def read_table(path: Path) -> pd.DataFrame:
     suf = path.suffix.lower()
     if suf == ".csv":
-        return pd.read_csv(path, dtype=str, keep_default_na=False)
+        raw = path.read_bytes()
+        encoding = detect_encoding(raw)
+        df = pd.read_csv(io.BytesIO(raw), dtype=str, keep_default_na=False, encoding=encoding)
+        df.attrs["encoding"] = encoding
+        return df
     if suf in (".xlsx", ".xls"):
         return pd.read_excel(path, dtype=str).fillna("")
     if suf in (".sas7bdat", ".xpt"):

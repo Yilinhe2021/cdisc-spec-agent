@@ -73,3 +73,9 @@ async def test_feedback_calibration_is_visible_and_never_hides_critical():
     assert m2.status == "dismissed" and "auto-dismissed" in m2.note   # demoted, still listed
     assert c2.status == "open"                                           # critical: humans only
     assert later.summary["auto_dismissed"] >= 1
+
+
+def test_reads_windows_1252_extract():
+    df = read_table(EX / "sdtm" / "raw" / "RAW_AE.csv")
+    assert df.attrs["encoding"] == "cp1252"
+    assert "Eczéma on forearm" in df["AETERM"].tolist()
