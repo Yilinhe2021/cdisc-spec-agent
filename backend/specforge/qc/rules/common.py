@@ -1,6 +1,7 @@
 """Rules that apply to any tabulation/analysis spec (SDTM and ADaM)."""
 from __future__ import annotations
 
+import re
 from collections import Counter
 
 from ...models import Category, Severity, Spec
@@ -160,3 +161,43 @@ def req_nullable(spec: Spec):
         if v.core.lower().startswith("req") and any(
                 p in v.derivation.lower() for p in ("else missing", "otherwise missing", "else null", "leave blank", "else blank")):
             yield Hit(f"{v.variable} is Required but its derivation allows missing values.", v)
+
+
+def quote_problems(text: str) -> list[str]:
+    """Find quoting mistakes that silently change what a literal means.
+
+    Spec text is usually typed in Excel/Word, so two things go wrong in practice:
+      * an opening ' closed by " (or the reverse) -> a parser either drops the condition
+        or swallows the rest of the line as one literal;
+      * curly quotes pasted from Word -> the literal no longer equals the data value.
+    Apostrophes inside words (subject's, investigator's) are not quotes.
+    """
+    problems = []
+    if re.search(r"[‘’“”]", text):
+        problems.append("contains curly quotes (‘ ’ “ ”), probably pasted from Word")
+    plain = re.sub(r"(?<=[A-Za-z])'(?=[A-Za-z])", "", text)
+    plain = re.sub(r"[‘’]", "'", re.sub(r"[“”]", '"', plain))
+    open_q = None
+    for i, ch in enumerate(plain):
+        if ch not in "'\"":
+            continue
+        if open_q is None:
+            open_q = (ch, i)
+        elif ch == open_q[0]:
+            open_q = None
+        else:
+            snippet = plain[open_q[1]:i + 1]
+            problems.append(f"literal {snippet} opens with {open_q[0]} but closes with {ch}")
+            open_q = None
+    if open_q:
+        problems.append(f"quote {open_q[0]} at '...{plain[max(0, open_q[1] - 10):open_q[1] + 15]}...' is never closed")
+    return problems
+
+
+@rule("GEN-016", "Unbalanced, mixed or curly quotes in derivation", severity=Severity.critical,
+      category=Category.consistency, kb_query="literal values must match codelist exactly copy text")
+def bad_quotes(spec: Spec):
+    for v in spec.variables:
+        for p in quote_problems(v.derivation):
+            yield Hit(f"{v.variable}: derivation {p}. A program can mis-read the condition and silently drop records.",
+                      v, suggestion="Retype the literal with matching straight quotes.")

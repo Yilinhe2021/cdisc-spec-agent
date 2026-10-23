@@ -50,3 +50,13 @@ def test_comparison_literal_is_not_assignment():
 def test_clean_specs_have_no_rule_hits():
     for std in ("SDTM", "ADaM"):
         assert run_rules(load_spec(EX / std.lower() / "spec_final.xlsx", std))[0] == []
+
+
+def test_quote_problems():
+    from specforge.qc.rules.common import quote_problems
+
+    assert quote_problems("Set to 'Y' if AEOUT = 'Ongoing\"") != []          # mixed
+    assert quote_problems("Set to 'Y' if AEOUT = 'Ongoing") != []            # never closed
+    assert quote_problems("Set to ‘Y’") != []                       # curly
+    assert quote_problems("Set to 'Y' if investigator's answer = \"Yes\"") == []
+    assert quote_problems("Map RAW_DM.SEX using codelist SEX") == []
