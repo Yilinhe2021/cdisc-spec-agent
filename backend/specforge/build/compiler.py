@@ -86,8 +86,25 @@ def _keys(s: str | None) -> list[str] | None:
     return [k.strip().upper() for k in re.split(r"[,\s]+(?:and\s+)?", s) if k.strip()] if s else None
 
 
+MISSING_CLAUSE = re.compile(rf"(?i);\s*(?:missing|null|blank) if ({REF}(?:\s*(?:,|or)\s*{REF})*) (?:is|are) missing$")
+
+
 def compile_row(v: SpecVariable, c: _Ctx) -> str | None:
+    """Compile one row. A trailing '; missing if A [or B] is missing' clause wraps any phrase, because
+    SAS and pandas disagree on comparisons with missing values - the spec has to say, and then we obey it."""
     d = re.sub(r"\s+", " ", v.derivation.strip().rstrip("."))
+    m = MISSING_CLAUSE.search(d)
+    if not m or not all(r.isupper() for r in re.split(r"\s*(?:,|\bor\b)\s*", m.group(1)) if r):
+        return _compile_phrase(d, c)  # e.g. "missing if either is missing" is handled inside the phrase itself
+    expr = _compile_phrase(d[:m.start()].strip(), c)
+    if expr is None:
+        return None
+    refs = [r for r in re.split(r"\s*(?:,|\bor\b)\s*", m.group(1)) if r]
+    cond = " | ".join(f"is_missing({c.ref(r)})" for r in refs)
+    return f"where({cond}, None, {expr})"
+
+
+def _compile_phrase(d: str, c: _Ctx) -> str | None:
     m = re.fullmatch(r"(?i)(?:set to|assigned?(?: to)?)\s+('[^']*'|-?\d+(?:\.\d+)?)", d)
     if m:
         return f"{c.val(m.group(1))}"

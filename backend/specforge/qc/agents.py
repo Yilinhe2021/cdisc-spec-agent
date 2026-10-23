@@ -140,6 +140,7 @@ ORDER_WORDS = re.compile(r"\b(first|last|earliest|latest|worst|best|highest|lowe
 ORDER_KEYS = re.compile(r"\b(sort(ed)?|order(ed)?|by\s+[A-Z]{3,}|tie|chronolog|min\(|max\()", re.I)
 DATE_WORDS = re.compile(r"(DTC|DT\b|date)", re.I)
 DATE_COMPARE = re.compile(r"(<|>|before|after|prior to|on or after|minus|difference|between)", re.I)
+ORDER_CMP = re.compile(r"\b[A-Z][A-Z0-9]{1,7}\s*(?:<=|>=|<|>)\s*|\b(?:lt|le|gt|ge)\b")
 MISSING_HANDLED = re.compile(r"(partial|missing|imput|incomplete|null|blank)", re.I)
 
 
@@ -174,7 +175,15 @@ def offline_clarity(ctx: dict) -> list[dict]:
             out.append({**base, "severity": "minor", "confidence": 0.6,
                         "issue": "Dates are compared but partial/missing date handling is not described.",
                         "suggestion": "Say whether partial dates are excluded, imputed (how) or kept missing.",
-                        "citations": ["04_spec_writing#3"]})
+                        "citations": ["04_spec_writing#3", "06_double_programming_lessons#0"]})
+        elif ORDER_CMP.search(d) and not MISSING_HANDLED.search(d):
+            # SAS treats missing as smaller than any number; pandas says every comparison with NaN is False.
+            # Two honest programmers will disagree on exactly these rows unless the spec decides.
+            out.append({**base, "severity": "minor", "confidence": 0.65,
+                        "issue": "Numeric comparison without a rule for missing values; SAS and Python evaluate "
+                                 "it differently when the variable is missing.",
+                        "suggestion": "Add the missing case, e.g. '; missing if <VAR> is missing'.",
+                        "citations": ["06_double_programming_lessons#0"]})
         if r["origin"].lower() == "derived" and 0 < len(d) < 12 and "." not in d:
             out.append({**base, "severity": "minor", "confidence": 0.5,
                         "issue": f"Derivation '{d}' is too terse to implement.",

@@ -124,9 +124,8 @@ def ref_sdtm(rdm: pd.DataFrame, rae: pd.DataFrame):
 
 def ref_adam(dm: pd.DataFrame, ae: pd.DataFrame):
     adsl = dm[["STUDYID", "USUBJID", "SUBJID", "SITEID", "AGE", "SEX", "RACE", "ARMCD", "ARM", "COUNTRY"]].copy()
-    adsl["AGEGR1"] = ["<65" if a < 65 else ">=65" for a in adsl.AGE.fillna(0)]
-    adsl.loc[adsl.AGE.isna(), "AGEGR1"] = ">=65"   # spec: else branch
-    adsl["AGEGR1N"] = [1 if g == "<65" else 2 for g in adsl.AGEGR1]
+    adsl["AGEGR1"] = ["" if pd.isna(a) else "<65" if a < 65 else ">=65" for a in adsl.AGE]
+    adsl["AGEGR1N"] = pd.array([None if g == "" else 1 if g == "<65" else 2 for g in adsl.AGEGR1], dtype="Int64")
     adsl["TRT01P"] = adsl.ARM
     adsl["TRTSDT"] = [d if d else "" for d in dm.RFSTDTC]
     adsl["TRTEDT"] = [d if d else "" for d in dm.RFENDTC]
@@ -214,8 +213,8 @@ ADAM_VARS = [
     ("ADSL", "SUBJID", "Subject Identifier for the Study", "Char", 10, "Predecessor", "DM.SUBJID", "", "Req"),
     ("ADSL", "SITEID", "Study Site Identifier", "Char", 5, "Predecessor", "DM.SITEID", "", "Req"),
     ("ADSL", "AGE", "Age", "Num", 8, "Predecessor", "DM.AGE", "", "Req"),
-    ("ADSL", "AGEGR1", "Pooled Age Group 1", "Char", 4, "Derived", "Set to '<65' if AGE < 65, else '>=65'", "AGEGR1", "Perm"),
-    ("ADSL", "AGEGR1N", "Pooled Age Group 1 (N)", "Num", 8, "Derived", "Set to 1 if AGEGR1 = '<65', else 2", "", "Perm"),
+    ("ADSL", "AGEGR1", "Pooled Age Group 1", "Char", 4, "Derived", "Set to '<65' if AGE < 65, else '>=65'; missing if AGE is missing", "AGEGR1", "Perm"),
+    ("ADSL", "AGEGR1N", "Pooled Age Group 1 (N)", "Num", 8, "Derived", "Set to 1 if AGEGR1 = '<65', else 2; missing if AGEGR1 is missing", "", "Perm"),
     ("ADSL", "SEX", "Sex", "Char", 1, "Predecessor", "DM.SEX", "SEX", "Req"),
     ("ADSL", "RACE", "Race", "Char", 40, "Predecessor", "DM.RACE", "", "Req"),
     ("ADSL", "COUNTRY", "Country", "Char", 3, "Predecessor", "DM.COUNTRY", "", "Perm"),
@@ -243,7 +242,7 @@ ADAM_VARS = [
      "Study day of ASTDT relative to TRTSDT: ASTDT - TRTSDT + 1 if ASTDT >= TRTSDT, else ASTDT - TRTSDT; "
      "missing if either is missing", "", "Perm"),
     ("ADAE", "TRTEMFL", "Treatment Emergent Analysis Flag", "Char", 1, "Derived",
-     "Set to 'Y' if ASTDT >= TRTSDT, else null", "Y", "Exp"),
+     "Set to 'Y' if ASTDT >= TRTSDT, else null; null if ASTDT or TRTSDT is missing", "Y", "Exp"),
 ]
 ADAM_CL = [("AGEGR1", "<65", "<65"), ("AGEGR1", ">=65", ">=65"), ("SEX", "M", "Male"), ("SEX", "F", "Female"),
            ("NY", "N", "No"), ("NY", "Y", "Yes"), ("Y", "Y", "Yes")]

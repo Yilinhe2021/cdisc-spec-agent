@@ -1,6 +1,6 @@
 # Evaluation results
 
-LLM provider: `mock` / `offline-heuristics` · generated 2026-10-21
+LLM provider: `mock` / `offline-heuristics` · generated 2026-10-22
 
 ## 1. Seeded defects (examples/*/spec_draft.xlsx)
 

@@ -61,3 +61,15 @@ async def test_dismissed_feedback_lowers_confidence():
         feedback.record(target, "dismissed", "origin eCRF is our house convention")
     second = await run_qc(spec, get_provider("mock"))
     assert not any(f.rule_id == "GEN-008" for f in second.findings), "judge should suppress repeatedly dismissed pattern"
+
+
+def test_missing_clause_wraps_condition():
+    from specforge.models import Spec, SpecVariable
+
+    spec = Spec(standard="ADaM", variables=[
+        SpecVariable(row=2, dataset="ADSL", variable="USUBJID", type="Char", origin="Predecessor", derivation="DM.USUBJID"),
+        SpecVariable(row=3, dataset="ADSL", variable="AGE", type="Num", origin="Predecessor", derivation="DM.AGE"),
+        SpecVariable(row=4, dataset="ADSL", variable="AGEGR1", type="Char", origin="Derived",
+                     derivation="Set to '<65' if AGE < 65, else '>=65'; missing if AGE is missing")])
+    c = compile_dataset(spec, "ADSL", {"DM": ["USUBJID", "AGE"]})
+    assert not c.unresolved and 'where(is_missing(df["AGE"]), None' in c.code
