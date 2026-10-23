@@ -5,12 +5,12 @@ export interface Citation { source: string; section: string; snippet: string; sc
 export interface Finding {
   id: string; rule_id: string; agent: string; dataset: string; variable: string; row: number | null;
   severity: Severity; category: string; message: string; suggestion: string; evidence: Citation[];
-  confidence: number; status: "open" | "accepted" | "dismissed"; merged_from: string[];
+  confidence: number; status: "open" | "accepted" | "dismissed"; merged_from: string[]; note: string;
 }
 export interface QCResult {
   job_id: string; standard: Standard; spec_name: string; findings: Finding[];
   summary: { total: number; by_severity: Record<string, number>; by_category: Record<string, number>;
-    by_agent: Record<string, number>; rows_flagged: number; profile: Record<string, unknown>;
+    by_agent: Record<string, number>; rows_flagged: number; auto_dismissed?: number; profile: Record<string, unknown>;
     llm: { provider: string; model: string; calls: number } };
   coverage: Record<string, string>[];
 }

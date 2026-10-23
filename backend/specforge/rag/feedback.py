@@ -58,6 +58,13 @@ class FeedbackMemory:
                 out.append(e)
         return out
 
+    def history(self, finding: Finding) -> list[dict]:
+        """All past decisions on this exact rule+target, plus the closest decisions on the same rule elsewhere."""
+        exact = [e for e in self.entries if e["rule_id"] == finding.rule_id
+                 and e["dataset"] == finding.dataset and e["variable"] == finding.variable]
+        seen = {id(e) for e in exact}
+        return exact + [e for e in self.similar(finding, k=5) if id(e) not in seen]
+
     def examples(self, query: str, k: int = 4) -> list[dict]:
         if not self.index:
             return []

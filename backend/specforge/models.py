@@ -126,6 +126,7 @@ class Finding(BaseModel):
     confidence: float = 1.0
     status: Literal["open", "accepted", "dismissed"] = "open"
     merged_from: list[str] = Field(default_factory=list)
+    note: str = ""  # why the system changed status/confidence (e.g. auto-dismissed from reviewer history)
 
     @property
     def target(self) -> str:

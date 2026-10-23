@@ -385,8 +385,23 @@ def _tokens(s: str) -> set[str]:
 
 
 class JudgeAgent(Agent):
+    """CALIBRATION notes.
+
+    v1 subtracted 0.25 per dismissal and silently dropped anything under 0.3. Two problems:
+      * one reviewer dismissing a deterministic rule three times made a real conformance error vanish;
+      * "silently dropped" is the failure mode that hurts most in QC - a finding nobody sees.
+    v2:
+      * confidence is scaled by a smoothed accept rate, so a single decision moves it a little and a
+        consistent history moves it a lot;
+      * nothing is deleted: low-confidence findings are marked dismissed with the reason and stay visible;
+      * critical findings are never auto-dismissed - only a human can dismiss them;
+      * at least MIN_DISMISSALS dismissals are needed before automation acts.
+    """
     name = "Judge"
     description = "Merge, verify, ground and rank all findings"
+    AUTO_DISMISS_BELOW = 0.35
+    MIN_DISMISSALS = 2
+    AGREEMENT_BONUS = 0.1  # another agent independently reported the same issue
 
     async def run(self, ctx: Context):
         spec: Spec = ctx.state["spec"]
@@ -417,7 +432,7 @@ class JudgeAgent(Agent):
                         and len(_tokens(m.message) & _tokens(f.message)) / max(len(_tokens(f.message)), 1) > 0.5), None)
             if dup:
                 dup.merged_from.append(f"{f.agent}:{f.rule_id}")
-                dup.confidence = min(1.0, dup.confidence + 0.1)  # independent agreement
+                dup.confidence = min(1.0, dup.confidence + self.AGREEMENT_BONUS)
                 dup.evidence += [e for e in f.evidence if e not in dup.evidence]
             else:
                 merged.append(f)
@@ -430,19 +445,26 @@ class JudgeAgent(Agent):
                 f.evidence = [Citation(source=h.chunk.source, section=h.chunk.section,
                                        snippet=h.chunk.text[:240], score=h.score) for h in hits]
 
-        # 4) calibrate with human feedback
-        adjusted = 0
+        # 4) calibrate with human feedback (see CALIBRATION notes at the top of JudgeAgent)
+        adjusted = auto = 0
         for f in merged:
-            past = fb.similar(f)
-            if past:
-                dismissed = sum(p["decision"] == "dismissed" for p in past)
-                accepted = sum(p["decision"] == "accepted" for p in past)
-                f.confidence = max(0.05, min(1.0, f.confidence - 0.25 * dismissed + 0.1 * accepted))
-                adjusted += 1
+            past = fb.history(f)
+            if not past:
+                continue
+            dismissed = sum(p["decision"] == "dismissed" for p in past)
+            accepted = len(past) - dismissed
+            p_real = (accepted + 1) / (accepted + dismissed + 2)        # Laplace: no history -> 0.5 -> factor 1
+            f.confidence = round(max(0.05, min(1.0, f.confidence * 2 * p_real)), 3)
+            adjusted += 1
+            if (f.confidence < self.AUTO_DISMISS_BELOW and dismissed >= self.MIN_DISMISSALS
+                    and f.severity != Severity.critical):
+                f.status = "dismissed"
+                f.note = (f"auto-dismissed: reviewers dismissed this pattern {dismissed}x, accepted {accepted}x "
+                          f"(confidence {f.confidence}). Visible under 'show dismissed'.")
+                auto += 1
         if adjusted:
-            self.log(ctx, f"calibrated {adjusted} findings from reviewer history", "tool")
+            self.log(ctx, f"calibrated {adjusted} findings from reviewer history, auto-dismissed {auto}", "tool")
 
-        final = [f for f in merged if f.confidence >= 0.3]
-        final.sort(key=lambda f: (SEVERITY_ORDER[f.severity], f.dataset, f.row or 0))
-        self.log(ctx, f"{len(final)} findings after calibration", "result")
+        final = sorted(merged, key=lambda f: (f.status == "dismissed", SEVERITY_ORDER[f.severity], f.dataset, f.row or 0))
+        self.log(ctx, f"{sum(f.status != 'dismissed' for f in final)} open findings after calibration", "result")
         return final

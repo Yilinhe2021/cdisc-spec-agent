@@ -76,6 +76,7 @@ function Summary({ r, jobId, onNext }: { r: QCResult; jobId: string; onNext: () 
       <div className="stats">
         <Stat label="findings" value={s.total} />
         <Stat label="rows flagged" value={s.rows_flagged} />
+        {!!s.auto_dismissed && <Stat label="auto-dismissed" value={s.auto_dismissed} />}
         {SEVS.map((k) => <Stat key={k} label={k} value={s.by_severity[k] ?? 0} tone={k} />)}
       </div>
       <div className="kv">
@@ -140,6 +141,7 @@ function FindingsTable({ jobId, findings, onChange }: { jobId: string; findings:
                   <td>
                     <div>{f.message}</div>
                     {f.suggestion && <div className="sugg">→ {f.suggestion}</div>}
+                    {f.note && <div className="note">{f.note}</div>}
                   </td>
                   <td className="small">
                     <div className="mono">{f.rule_id}</div>

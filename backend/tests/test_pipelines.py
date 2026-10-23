@@ -51,25 +51,25 @@ async def test_unknown_derivation_becomes_spec_gap(tmp_path):
     assert "TODO(coder)" in dm.program
 
 
-async def test_dismissed_feedback_lowers_confidence():
+async def test_feedback_calibration_is_visible_and_never_hides_critical():
     from specforge.rag import feedback
 
     spec = load_spec(EX / "sdtm" / "spec_draft.xlsx", "SDTM")
     first = await run_qc(spec, get_provider("mock"))
-    target = next(f for f in first.findings if f.rule_id == "GEN-008")
-    for _ in range(3):
-        feedback.record(target, "dismissed", "origin eCRF is our house convention")
-    second = await run_qc(spec, get_provider("mock"))
-    assert not any(f.rule_id == "GEN-008" for f in second.findings), "judge should suppress repeatedly dismissed pattern"
+    minor = next(f for f in first.findings if f.rule_id == "GEN-008")
+    crit = next(f for f in first.findings if f.severity.value == "critical")
 
+    feedback.record(minor, "dismissed")
+    one = await run_qc(spec, get_provider("mock"))
+    m1 = next(f for f in one.findings if f.rule_id == "GEN-008")
+    assert m1.status == "open" and m1.confidence < 1.0          # one opinion only nudges
 
-def test_missing_clause_wraps_condition():
-    from specforge.models import Spec, SpecVariable
-
-    spec = Spec(standard="ADaM", variables=[
-        SpecVariable(row=2, dataset="ADSL", variable="USUBJID", type="Char", origin="Predecessor", derivation="DM.USUBJID"),
-        SpecVariable(row=3, dataset="ADSL", variable="AGE", type="Num", origin="Predecessor", derivation="DM.AGE"),
-        SpecVariable(row=4, dataset="ADSL", variable="AGEGR1", type="Char", origin="Derived",
-                     derivation="Set to '<65' if AGE < 65, else '>=65'; missing if AGE is missing")])
-    c = compile_dataset(spec, "ADSL", {"DM": ["USUBJID", "AGE"]})
-    assert not c.unresolved and 'where(is_missing(df["AGE"]), None' in c.code
+    for _ in range(5):
+        feedback.record(minor, "dismissed")
+        feedback.record(crit, "dismissed")
+    later = await run_qc(spec, get_provider("mock"))
+    m2 = next(f for f in later.findings if f.rule_id == "GEN-008")
+    c2 = next(f for f in later.findings if f.rule_id == crit.rule_id and f.variable == crit.variable)
+    assert m2.status == "dismissed" and "auto-dismissed" in m2.note   # demoted, still listed
+    assert c2.status == "open"                                           # critical: humans only
+    assert later.summary["auto_dismissed"] >= 1

@@ -37,15 +37,16 @@ async def run_qc(spec: Spec, llm: LLMProvider, tracer: Tracer | None = None, job
 
     tracer.emit("Orchestrator", f"QC started: {spec.source_name} ({spec.standard}) with {llm.name}/{llm.model}", "start")
     results = await build_graph().run(ctx, on_done)
-    findings = results["Judge"]
+    all_findings = results["Judge"]
+    findings = [f for f in all_findings if f.status != "dismissed"]
     sev = Counter(f.severity.value for f in findings)
     cat = Counter(f.category.value for f in findings)
     by_agent = Counter(a for f in findings for a in [f.agent] + [m.split(":")[0] for m in f.merged_from])
     summary = {
         "total": len(findings), "by_severity": dict(sev), "by_category": dict(cat), "by_agent": dict(by_agent),
         "rows_flagged": len({(f.dataset, f.variable) for f in findings if f.variable}),
-        "profile": results["Intake"], "llm": llm.usage(),
+        "auto_dismissed": len(all_findings) - len(findings), "profile": results["Intake"], "llm": llm.usage(),
     }
     tracer.emit("Orchestrator", f"QC finished: {len(findings)} findings", "done", summary=summary)
     return QCResult(job_id=job_id, standard=spec.standard, spec_name=spec.source_name, summary=summary,
-                    findings=findings, coverage=ctx.state["coverage"])
+                    findings=all_findings, coverage=ctx.state["coverage"])

@@ -96,6 +96,7 @@ table.findings tbody tr:not(.evidence):hover { background: var(--accent-soft); }
 tr.st-dismissed { opacity: .45; text-decoration: line-through; }
 tr.st-accepted td:first-child { box-shadow: inset 3px 0 0 var(--ok); }
 .sugg { color: var(--muted); margin-top: 3px; }
+.note { color: #9a5b00; font-size: 12px; margin-top: 3px; }
 .sev { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; color: #fff; }
 .sev.critical { background: var(--crit); } .sev.major { background: var(--major); } .sev.minor { background: var(--minor); } .sev.info { background: var(--info); }
 .conf { width: 50px; height: 6px; background: var(--line); border-radius: 3px; margin-top: 6px; }
