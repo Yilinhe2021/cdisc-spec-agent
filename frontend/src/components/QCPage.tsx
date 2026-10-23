@@ -52,6 +52,7 @@ export default function QCPage({ standard, onNext }: { standard: Standard; onNex
         <div className="actions">
           <button className="primary" disabled={!spec.length || running} onClick={() => start(false)}>Run QC</button>
           <button disabled={running} onClick={() => start(true)}>Try the synthetic demo spec</button>
+          <a className="button" href={`/api/examples/${standard}/qc`}>Download sample spec</a>
           {error && <span className="err">{error}</span>}
         </div>
       </section>

@@ -45,3 +45,14 @@ def test_public_demo_blocks_uploads(monkeypatch):
     assert c.get("/api/health").json()["offline"] is True
     r = c.post("/api/qc", data={"standard": "SDTM"}, files={"spec": ("s.csv", b"Variable\nAGE\n")})
     assert r.status_code == 403
+
+
+def test_sample_downloads():
+    import io
+    import zipfile
+
+    c = _client()
+    assert c.get("/api/examples/SDTM/qc").content[:2] == b"PK"
+    names = zipfile.ZipFile(io.BytesIO(c.get("/api/examples/ADaM/build").content)).namelist()
+    assert {"spec_final.xlsx", "data/DM.csv", "data/AE.csv", "reference/ADSL.csv", "README.txt"} <= set(names)
+    assert c.get("/api/examples/SDTM/other").status_code == 404

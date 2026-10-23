@@ -54,6 +54,7 @@ export default function BuildPage({ standard }: { standard: Standard }) {
           <input className="targets" placeholder="datasets to build (default: all), e.g. DM, AE" value={targets} onChange={(e) => setTargets(e.target.value)} />
           <button className="primary" disabled={!spec.length || !data.length || running} onClick={() => start(false)}>Build</button>
           <button disabled={running} onClick={() => start(true)}>Try the synthetic demo study</button>
+          <a className="button" href={`/api/examples/${standard}/build`}>Download sample inputs (.zip)</a>
           {error && <span className="err">{error}</span>}
         </div>
       </section>

@@ -96,6 +96,44 @@ def health():
     return {"status": "ok", "llm": llm.name, "model": llm.model, "offline": llm.offline, "public_demo": PUBLIC_DEMO}
 
 
+SAMPLE_README = """SpecForge sample files ({standard}) - synthetic study SYN-001, no real data.
+
+spec_final.xlsx   reviewed spec      -> "Reviewed specification"
+data/*.csv        source tables      -> "Source data" (select all; file name = table name)
+reference/*.csv   expected output    -> "Reference datasets (optional)", used only by the validator
+
+Note: data/RAW_AE.csv is deliberately saved as Windows-1252 and contains a non-breaking space,
+to show that the build detects encodings per file.
+"""
+
+
+@app.get("/api/examples/{standard}/{kind}")
+def sample_files(standard: Standard, kind: str):
+    """Download the synthetic sample inputs: kind=qc -> draft spec (.xlsx); kind=build -> spec + data + reference (.zip)."""
+    base = EXAMPLES / standard.lower()
+    if not base.exists():
+        raise HTTPException(404, "examples not generated: run `python examples/make_examples.py`")
+    if kind == "qc":
+        f = base / "spec_draft.xlsx"
+        return FileResponse(f, filename=f"sample_{standard.lower()}_spec_draft.xlsx",
+                            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    if kind != "build":
+        raise HTTPException(404, "kind must be qc or build")
+    data_dir = base / ("raw" if standard == "SDTM" else "inputs")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.write(base / "spec_final.xlsx", "spec_final.xlsx")
+        for f in sorted(data_dir.glob("*.csv")):
+            z.write(f, f"data/{f.name}")
+        for f in sorted((base / "reference").glob("*.csv")):
+            z.write(f, f"reference/{f.name}")
+        z.writestr("README.txt", SAMPLE_README.format(standard=standard))
+    buf.seek(0)
+    name = f"sample_{standard.lower()}_build_inputs.zip"
+    return StreamingResponse(buf, media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 @app.get("/api/rules")
 def rules():
     return [{"id": r.id, "title": r.title, "standards": r.standards, "severity": r.severity.value,
